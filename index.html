@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Симулятор ліфта</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <style>
+        /* — дизайн без змін — */
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1a2a6c,#b21f1f,#1a2a6c);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px;overflow-x:hidden}
+        header{text-align:center;margin-bottom:20px;width:100%;max-width:900px}
+        h1{font-size:2.5rem;margin-bottom:10px;text-shadow:0 2px 4px rgba(0,0,0,.5)}
+        .subtitle{font-size:1.2rem;margin-bottom:20px;opacity:.9}
+        .controls{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:20px;padding:15px;background:rgba(0,0,0,.3);border-radius:10px;width:100%;max-width:900px}
+        .control-group{display:flex;flex-direction:column;align-items:center}
+        label{margin-bottom:5px;font-weight:500}
+        input,button{padding:8px 15px;border-radius:5px;border:none;font-size:1rem}
+        input{width:80px;text-align:center;background:#f0f0f0}
+        button{background:linear-gradient(to right,#4facfe 0%,#00f2fe 100%);color:#fff;font-weight:bold;cursor:pointer;transition:.3s;box-shadow:0 4px 6px rgba(0,0,0,.1)}
+        button:hover{transform:translateY(-2px);box-shadow:0 6px 8px rgba(0,0,0,.15)}
+        button:active{transform:none}
+        .stats{display:flex;flex-wrap:wrap;gap:30px;margin:15px 0;background:rgba(0,0,0,.3);padding:10px 20px;border-radius:10px;justify-content:center}
+        .stat-item{text-align:center;min-width:120px}
+        .stat-value{font-size:1.5rem;font-weight:bold;color:#4facfe}
+        .container{position:relative;width:100%;max-width:900px;background:rgba(0,0,0,.6);border-radius:15px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.5);margin-bottom:20px}
+        #gameCanvas{width:100%;height:600px;display:block}
+        .legend{display:flex;flex-wrap:wrap;justify-content:center;gap:30px;margin-top:15px;background:rgba(0,0,0,.3);padding:10px;border-radius:10px;width:100%;max-width:900px}
+        .legend-item{display:flex;align-items:center;gap:8px}
+        .color-box{width:20px;height:20px;border-radius:4px}
+        .blue{background:#4facfe}.green{background:#00c9a7}.red{background:#ff6b6b}
+        .status-message{margin-top:10px;padding:10px;border-radius:5px;background:rgba(255,255,255,.1);text-align:center;width:100%;max-width:900px;font-weight:500}
+        .success{background:rgba(46,204,113,.3)}.error{background:rgba(178,34,34,.5)}
+        footer{margin-top:20px;text-align:center;opacity:.8;font-size:.9rem}
+        @media(max-width:768px){.controls{flex-direction:column}.stats{flex-wrap:wrap;justify-content:center}h1{font-size:2rem}.legend{flex-direction:column;gap:10px}}
+    </style>
+</head>
+<body>
+<header><h1>Симулятор ліфта</h1><p class="subtitle">Моделювання роботи ліфта з оптимізацією руху та анімацією</p></header>
+
+<!-- ===== UI (inputs, статистика) без змін  ===== -->
+<div class="controls">
+    <div class="control-group"><label for="floorCount">Кількість поверхів (4-10):</label><input id="floorCount" type="number" min="4" max="10" value="7"/></div>
+    <div class="control-group"><label for="elevatorCapacity">Вмісткість ліфта (2-4):</label><input id="elevatorCapacity" type="number" min="2" max="4" value="3"/></div>
+    <div class="control-group"><button id="startBtn">Запустити симуляцію</button><button id="resetBtn">Скинути</button></div>
+</div>
+
+<div id="statusMessage" class="status-message">Симуляція готова до запуску.</div>
+<div class="stats">
+    <div class="stat-item"><div>Поточний поверх:</div><div id="currentFloor" class="stat-value">1</div></div>
+    <div class="stat-item"><div>Пасажирів у ліфті:</div><div id="passengerCount" class="stat-value">0</div></div>
+    <div class="stat-item"><div>Перевезено людей:</div><div id="transportedCount" class="stat-value">0</div></div>
+    <div class="stat-item"><div>Напрямок:</div><div id="direction" class="stat-value">СТОП</div></div>
+    <div class="stat-item"><div>Наступний поверх:</div><div id="nextFloor" class="stat-value">-</div></div>
+    <div class="stat-item"><div>Пасажири в ліфті:</div><div id="elevatorPassengers" class="stat-value">-</div></div>
+</div>
+
+<div class="container"><div id="gameCanvas"></div></div>
+
+<div class="legend">
+    <div class="legend-item"><div class="color-box blue"></div><span>Угору</span></div>
+    <div class="legend-item"><div class="color-box green"></div><span>Вниз</span></div>
+    <div class="legend-item"><div class="color-box red"></div><span>Ліфт</span></div>
+</div>
+
+<footer><p>PIXI.js + Tween.js | ліфт-сим</p></footer>
+<script type="module" src="./src/main.ts"></script>
+
+<!--<script>-->
+<!--    /* ==== конфіг ===== */-->
+<!--    const cfg={bw:800,fh:80,ew:60,es:1.5,stop:1000,minT:3000,maxT:7000,pw:30,ph:50,ps:5};-->
+
+<!--    /* ==== Person ===== */-->
+<!--    class Person{-->
+<!--        constructor(id,start,target,bld){-->
+<!--            this.id=id;this.start=start;this.current=start;this.target=target;-->
+<!--            this.dir=target>start?'up':'down';this.state='waiting';this.bld=bld;-->
+
+<!--            this.g=new PIXI.Graphics().beginFill(this.dir==='up'?0x4facfe:0x00c9a7)-->
+<!--                .drawRoundedRect(0,0,cfg.pw,cfg.ph,5).endFill();-->
+<!--            const t=new PIXI.Text(target+1,{fontSize:16,fill:0xffffff,fontWeight:'bold'});-->
+<!--            t.anchor.set(.5);t.position.set(cfg.pw/2,cfg.ph/2);this.g.addChild(t);-->
+<!--            bld.place(this,start);-->
+<!--        }-->
+<!--        moveToElevator(){-->
+<!--            if(this.state!=='waiting')return;-->
+<!--            this.state='walking';-->
+<!--            new TWEEN.Tween(this.g.position).to({x:cfg.ew+50},2000)-->
+<!--                .easing(TWEEN.Easing.Quadratic.Out).start()-->
+<!--                .onComplete(()=>{this.state='waiting';this.bld.elev.enqueue(this);});-->
+<!--        }-->
+<!--        enter(){this.state='in';this.g.visible=false;}-->
+<!--        leave(){-->
+<!--            this.state='out';this.g.visible=true;-->
+<!--            this.g.position.set(cfg.ew+20,this.bld.y(this.current));-->
+<!--            new TWEEN.Tween(this.g.position).to({x:cfg.bw-cfg.pw-20},2000)-->
+<!--                .easing(TWEEN.Easing.Quadratic.In).start()-->
+<!--                .onComplete(()=>this.bld.remove(this));-->
+<!--        }-->
+<!--    }-->
+
+<!--    /* ==== Elevator ===== */-->
+<!--    class Elevator{-->
+<!--        constructor(bld,cap){-->
+<!--            this.bld=bld;this.cap=cap;this.cur=0;this.dir='stop';-->
+<!--            this.pass=[];this.queue=[];this.targets=new Set();this.move=false;-->
+
+<!--            /* графіка */-->
+<!--            this.g=new PIXI.Graphics().beginFill(0xff6b6b)-->
+<!--                .drawRoundedRect(0,0,cfg.ew,cfg.fh-2,5).endFill();-->
+<!--            this.dL=new PIXI.Graphics().beginFill(0xe74c3c).drawRect(0,0,cfg.ew/2,cfg.fh-2).endFill();-->
+<!--            this.dR=new PIXI.Graphics().beginFill(0xe74c3c).drawRect(cfg.ew/2,0,cfg.ew/2,cfg.fh-2).endFill();-->
+<!--            this.g.addChild(this.dL);this.g.addChild(this.dR);-->
+<!--            this.g.position.set(20,bld.y(0));bld.app.stage.addChild(this.g);-->
+<!--            this.ind=new PIXI.Text('1',{fontSize:18,fill:0xffffff,fontWeight:'bold'});-->
+<!--            this.ind.anchor.set(.5);this.ind.position.set(cfg.ew/2,-20);this.g.addChild(this.ind);-->
+<!--        }-->
+
+<!--        /* UI helpers */-->
+<!--        ui(){nextFloor.textContent=this.next!=null?this.next+1:'-';-->
+<!--            passengerCount.textContent=this.pass.length;-->
+<!--            elevatorPassengers.textContent=this.pass.map(p=>p.target+1).join(', ')||'-';}-->
+
+<!--        enqueue(p){if(!this.queue.includes(p))this.queue.push(p);-->
+<!--            this.targets.add(p.target);-->
+<!--            if(this.dir==='stop')this.setDirection();}-->
+
+<!--        setDirection(){-->
+<!--            /* якщо кабіна пуста – приймаємо напрямок першого, кого побачимо */-->
+<!--            if(this.pass.length===0 && this.queue.length>0) this.dir=this.queue[0].dir;-->
+<!--            else if(this.dir==='stop'&&this.pass.length>0)  // був простій-->
+<!--                this.dir=this.pass[0].target>this.cur?'up':'down';-->
+
+<!--            this.next=this.chooseNext();this.ui();-->
+<!--            if(this.next!=null&&!this.move)this.travel();-->
+<!--        }-->
+
+<!--        /* головний пошук наступного поверху */-->
+<!--        actionOn(f){-->
+<!--            const exit=this.pass.some(p=>p.target===f);-->
+<!--            const wait=this.bld.floor[f].persons.some(p=>p.state==='waiting'&&-->
+<!--                (this.pass.length?p.dir===this.dir:true)); // якщо порожній – хто завгодно-->
+<!--            return exit||wait;-->
+<!--        }-->
+<!--        chooseNext(){-->
+<!--            /* 1. якщо на поточному щось є – повертаємо його одразу */-->
+<!--            if(this.actionOn(this.cur))return this.cur;-->
+
+<!--            /* 2. скануємо у напрямку dir */-->
+<!--            const step=this.dir==='up'?1:-1;-->
+<!--            for(let f=this.cur+step;f>=0&&f<this.bld.floors;f+=step)-->
+<!--                if(this.actionOn(f))return f;-->
+
+<!--            /* 3. розворот: шукаємо у протилежний бік */-->
+<!--            this.dir=this.dir==='up'?'down':'up';-->
+<!--            direction.textContent=this.dir==='up'?'ВГОРУ':'ВНИЗ';-->
+<!--            const revStep=this.dir==='up'?1:-1;-->
+<!--            for(let f=this.cur+revStep;f>=0&&f<this.bld.floors;f+=revStep)-->
+<!--                if(this.actionOn(f))return f;-->
+
+<!--            /* 4. нічого немає */-->
+<!--            this.dir='stop';direction.textContent='СТОП';-->
+<!--            return null;-->
+<!--        }-->
+
+<!--        travel(){-->
+<!--            if(this.next===null){this.ui();return;}-->
+<!--            /* якщо вже на потрібному — одразу stop() */-->
+<!--            if(this.next===this.cur){this.stop();return;}-->
+
+<!--            this.move=true;direction.textContent=this.dir==='up'?'ВГОРУ':'ВНИЗ';-->
+<!--            currentFloor.textContent=this.next+1;-->
+
+<!--            const t=Math.abs(this.next-this.cur)*1000/cfg.es;-->
+<!--            new TWEEN.Tween(this.g.position).to({y:this.bld.y(this.next)},t)-->
+<!--                .easing(TWEEN.Easing.Linear.None).start()-->
+<!--                .onComplete(()=>{this.cur=this.next;this.move=false;this.stop();});-->
+
+<!--            new TWEEN.Tween({}).to({},t).onUpdate(()=>{this.ind.text=this.cur+1;}).start();-->
+<!--        }-->
+
+<!--        stop(){-->
+<!--            /* виходять */-->
+<!--            this.pass.filter(p=>p.target===this.cur).forEach(p=>this.out(p));-->
+
+<!--            /* заходять (той же напрямок або будь-який, якщо пусто) */-->
+<!--            const waiting=this.bld.floor[this.cur].persons.filter(p=>-->
+<!--                p.state==='waiting'&&(this.pass.length?p.dir===this.dir:true));-->
+<!--            const seats=this.cap-this.pass.length;-->
+<!--            waiting.slice(0,seats).forEach(p=>this.in(p));-->
+
+<!--            /* якщо нічого не сталося — одразу їдемо далі, двері не відкриваємо */-->
+<!--            if(!this.actionOn(this.cur)){this.next=this.chooseNext();this.ui();this.travel();return;}-->
+
+<!--            /* інакше коротка зупинка */-->
+<!--            this.openDoors();-->
+<!--            this.ui();-->
+<!--            setTimeout(()=>{this.closeDoors();setTimeout(()=>{-->
+<!--                this.next=this.chooseNext();this.ui();this.travel();-->
+<!--            },300);},cfg.stop);-->
+<!--        }-->
+
+<!--        in(p){-->
+<!--            this.pass.push(p);this.queue=this.queue.filter(x=>x.id!==p.id);-->
+<!--            this.bld.floor[this.cur].persons=this.bld.floor[this.cur].persons.filter(x=>x.id!==p.id);-->
+<!--            this.bld.layout(this.cur);p.enter();this.targets.add(p.target);-->
+<!--        }-->
+<!--        out(p){-->
+<!--            this.pass=this.pass.filter(x=>x.id!==p.id);this.targets.delete(p.target);-->
+<!--            p.current=this.cur;p.leave();transportedCount.textContent=+transportedCount.textContent+1;-->
+<!--        }-->
+
+<!--        openDoors(){new TWEEN.Tween(this.dL).to({x:-cfg.ew/2},300).start();-->
+<!--            new TWEEN.Tween(this.dR).to({x:cfg.ew},300).start();}-->
+<!--        closeDoors(){new TWEEN.Tween(this.dL).to({x:0},300).start();-->
+<!--            new TWEEN.Tween(this.dR).to({x:cfg.ew/2},300).start();}-->
+<!--    }-->
+
+<!--    /* ==== Building ===== */-->
+<!--    class Building{-->
+<!--        constructor(floors,cap){-->
+<!--            this.floors=floors;this.floor=[...Array(floors)].map(()=>({persons:[]}));this.nextId=1;-->
+<!--            this.app=new PIXI.Application({width:cfg.bw,height:cfg.fh*floors,backgroundColor:0x1a1a2e,antialias:true});-->
+<!--            gameCanvas.appendChild(this.app.view);-->
+<!--            /* розмітка */-->
+<!--            for(let i=0;i<floors;i++){-->
+<!--                const y=(i+1)*cfg.fh;-->
+<!--                const g=new PIXI.Graphics().lineStyle(2,0x3498db,.4).moveTo(0,y).lineTo(cfg.bw,y);-->
+<!--                const t=new PIXI.Text(floors-i,{fontSize:16,fill:0xecf0f1});t.position.set(10,i*cfg.fh+10);-->
+<!--                this.app.stage.addChild(g);this.app.stage.addChild(t);-->
+<!--            }-->
+<!--            const sh=new PIXI.Graphics().lineStyle(3,0x7f8c8d).moveTo(cfg.ew+40,0)-->
+<!--                .lineTo(cfg.ew+40,floors*cfg.fh);this.app.stage.addChild(sh);-->
+
+<!--            this.elev=new Elevator(this,cap);this.app.ticker.add(()=>TWEEN.update());-->
+<!--            this.run=false;-->
+<!--        }-->
+<!--        y(f){return (this.floors-1-f)*cfg.fh;}-->
+<!--        place(p,f){this.floor[f].persons.push(p);this.layout(f);this.app.stage.addChild(p.g);}-->
+<!--        layout(f){-->
+<!--            const arr=this.floor[f].persons;if(arr.length===0)return;-->
+<!--            const x=cfg.bw-cfg.pw-20;const y=this.y(f)+(cfg.fh-cfg.ph)/2;-->
+<!--            new TWEEN.Tween(arr[0].g.position).to({x,y},500).start();-->
+<!--        }-->
+<!--        remove(p){this.floor[p.current].persons=[];this.layout(p.current);this.app.stage.removeChild(p.g);}-->
+
+<!--        spawn(){-->
+<!--            const start=Math.floor(Math.random()*this.floors);-->
+<!--            if(this.floor[start].persons.length)return;-->
+<!--            let tgt;do{tgt=Math.floor(Math.random()*this.floors);}while(tgt===start);-->
+<!--            const pers=new Person(this.nextId++,start,tgt,this);-->
+<!--            setTimeout(()=>pers.moveToElevator(),1000);-->
+<!--        }-->
+<!--        loop(){-->
+<!--            if(!this.run)return;this.spawn();-->
+<!--            setTimeout(()=>this.loop(),Math.random()*(cfg.maxT-cfg.minT)+cfg.minT);-->
+<!--        }-->
+<!--        start(){if(this.run)return;this.run=true;this.loop();}-->
+<!--        stop(){this.run=false;}-->
+<!--    }-->
+
+<!--    /* ==== UI контроль ===== */-->
+<!--    let b=null;-->
+<!--    function init(){-->
+<!--        const fl=Math.max(4,Math.min(+floorCount.value||7,10));-->
+<!--        const cap=Math.max(2,Math.min(+elevatorCapacity.value||3,4));-->
+<!--        gameCanvas.innerHTML='';currentFloor.textContent='1';passengerCount.textContent='0';-->
+<!--        transportedCount.textContent='0';direction.textContent='СТОП';nextFloor.textContent='-';-->
+<!--        elevatorPassengers.textContent='-';statusMessage.textContent=`Старт: ${fl} поверхів, місткість ${cap}`;-->
+<!--        statusMessage.className='status-message success';-->
+<!--        b=new Building(fl,cap);b.start();-->
+<!--    }-->
+<!--    startBtn.onclick=init;-->
+<!--    resetBtn.onclick=()=>{-->
+<!--        statusMessage.textContent='Симуляцію зупинено.';statusMessage.className='status-message';-->
+<!--        if(b){b.stop();gameCanvas.innerHTML='';}b=null;-->
+<!--        currentFloor.textContent=passengerCount.textContent=transportedCount.textContent='0';-->
+<!--        direction.textContent='СТОП';nextFloor.textContent='-';elevatorPassengers.textContent='-';-->
+<!--    };-->
+<!--    window.addEventListener('DOMContentLoaded',()=>setTimeout(init,300));-->
+<!--</script>-->
+</body>
+</html>
