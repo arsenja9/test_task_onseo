@@ -1,63 +1,286 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
     <title>Симулятор ліфта</title>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1a2a6c,#b21f1f,#1a2a6c);color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px;overflow-x:hidden}
-        header{text-align:center;margin-bottom:20px;width:100%;max-width:900px}
-        h1{font-size:2.5rem;margin-bottom:10px;text-shadow:0 2px 4px rgba(0,0,0,.5)}
-        .subtitle{font-size:1.2rem;margin-bottom:20px;opacity:.9}
-        .controls{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;margin-bottom:20px;padding:15px;background:rgba(0,0,0,.3);border-radius:10px;width:100%;max-width:900px}
-        .control-group{display:flex;flex-direction:column;align-items:center}
-        label{margin-bottom:5px;font-weight:500}
-        input,button{padding:8px 15px;border-radius:5px;border:none;font-size:1rem}
-        input{width:80px;text-align:center;background:#f0f0f0}
-        button{background:linear-gradient(to right,#4facfe 0%,#00f2fe 100%);color:#fff;font-weight:bold;cursor:pointer;transition:.3s;box-shadow:0 4px 6px rgba(0,0,0,.1)}
-        button:hover{transform:translateY(-2px);box-shadow:0 6px 8px rgba(0,0,0,.15)}
-        button:active{transform:none}
-        .stats{display:flex;flex-wrap:wrap;gap:30px;margin:15px 0;background:rgba(0,0,0,.3);padding:10px 20px;border-radius:10px;justify-content:center}
-        .stat-item{text-align:center;min-width:120px}
-        .stat-value{font-size:1.5rem;font-weight:bold;color:#4facfe}
-        .container{position:relative;width:100%;max-width:900px;background:rgba(0,0,0,.6);border-radius:15px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.5);margin-bottom:20px}
-        #gameCanvas{width:100%;height:600px;display:block}
-        .legend{display:flex;flex-wrap:wrap;justify-content:center;gap:30px;margin-top:15px;background:rgba(0,0,0,.3);padding:10px;border-radius:10px;width:100%;max-width:900px}
-        .legend-item{display:flex;align-items:center;gap:8px}
-        .color-box{width:20px;height:20px;border-radius:4px}
-        .blue{background:#4facfe}.green{background:#00c9a7}.red{background:#ff6b6b}
-        .status-message{margin-top:10px;padding:10px;border-radius:5px;background:rgba(255,255,255,.1);text-align:center;width:100%;max-width:900px;font-weight:500}
-        .success{background:rgba(46,204,113,.3)}.error{background:rgba(178,34,34,.5)}
-        footer{margin-top:20px;text-align:center;opacity:.8;font-size:.9rem}
-        @media(max-width:768px){.controls{flex-direction:column}.stats{flex-wrap:wrap;justify-content:center}h1{font-size:2rem}.legend{flex-direction:column;gap:10px}}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 900px
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, .5)
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            opacity: .9
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, .3);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 900px
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: 500
+        }
+
+        input, button {
+            padding: 8px 15px;
+            border-radius: 5px;
+            border: none;
+            font-size: 1rem
+        }
+
+        input {
+            width: 80px;
+            text-align: center;
+            background: #f0f0f0
+        }
+
+        button {
+            background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: .3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, .1)
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, .15)
+        }
+
+        button:active {
+            transform: none
+        }
+
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin: 15px 0;
+            background: rgba(0, 0, 0, .3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            justify-content: center
+        }
+
+        .stat-item {
+            text-align: center;
+            min-width: 120px
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4facfe
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            background: rgba(0, 0, 0, .6);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+            margin-bottom: 20px
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 600px;
+            display: block
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            background: rgba(0, 0, 0, .3);
+            padding: 10px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 900px
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px
+        }
+
+        .blue {
+            background: #4facfe
+        }
+
+        .green {
+            background: #00c9a7
+        }
+
+        .red {
+            background: #ff6b6b
+        }
+
+        .status-message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, .1);
+            text-align: center;
+            width: 100%;
+            max-width: 900px;
+            font-weight: 500
+        }
+
+        .success {
+            background: rgba(46, 204, 113, .3)
+        }
+
+        .error {
+            background: rgba(178, 34, 34, .5)
+        }
+
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            opacity: .8;
+            font-size: .9rem
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column
+            }
+
+            .stats {
+                flex-wrap: wrap;
+                justify-content: center
+            }
+
+            h1 {
+                font-size: 2rem
+            }
+
+            .legend {
+                flex-direction: column;
+                gap: 10px
+            }
+        }
     </style>
 </head>
 <body>
-<header><h1>Симулятор ліфта</h1><p class="subtitle">Моделювання роботи ліфта з оптимізацією руху та анімацією</p></header>
+<header><h1>Симулятор ліфта</h1>
+    <p class="subtitle">Моделювання роботи ліфта з оптимізацією руху та анімацією</p></header>
 
 <div class="controls">
-    <div class="control-group"><label for="floorCount">Кількість поверхів (4-10):</label><input id="floorCount" type="number" min="4" max="10" value="7"/></div>
-    <div class="control-group"><label for="elevatorCapacity">Вмісткість ліфта (2-4):</label><input id="elevatorCapacity" type="number" min="2" max="4" value="3"/></div>
-    <div class="control-group"><button id="startBtn">Запустити симуляцію</button><button id="resetBtn">Скинути</button></div>
+    <div class="control-group"><label for="floorCount">Кількість поверхів (4-10):</label><input id="floorCount"
+                                                                                                type="number" min="4"
+                                                                                                max="10" value="7"/>
+    </div>
+    <div class="control-group"><label for="elevatorCapacity">Вмісткість ліфта (2-4):</label><input id="elevatorCapacity"
+                                                                                                   type="number" min="2"
+                                                                                                   max="4" value="3"/>
+    </div>
+    <div class="control-group">
+        <button id="startBtn">Запустити симуляцію</button>
+        <button id="resetBtn">Скинути</button>
+    </div>
 </div>
 
 <div id="statusMessage" class="status-message">Симуляція готова до запуску.</div>
 <div class="stats">
-    <div class="stat-item"><div>Поточний поверх:</div><div id="currentFloor" class="stat-value">1</div></div>
-    <div class="stat-item"><div>Пасажирів у ліфті:</div><div id="passengerCount" class="stat-value">0</div></div>
-    <div class="stat-item"><div>Перевезено людей:</div><div id="transportedCount" class="stat-value">0</div></div>
-    <div class="stat-item"><div>Напрямок:</div><div id="direction" class="stat-value">СТОП</div></div>
-    <div class="stat-item"><div>Наступний поверх:</div><div id="nextFloor" class="stat-value">-</div></div>
-    <div class="stat-item"><div>Пасажири в ліфті:</div><div id="elevatorPassengers" class="stat-value">-</div></div>
+    <div class="stat-item">
+        <div>Поточний поверх:</div>
+        <div id="currentFloor" class="stat-value">1</div>
+    </div>
+    <div class="stat-item">
+        <div>Пасажирів у ліфті:</div>
+        <div id="passengerCount" class="stat-value">0</div>
+    </div>
+    <div class="stat-item">
+        <div>Перевезено людей:</div>
+        <div id="transportedCount" class="stat-value">0</div>
+    </div>
+    <div class="stat-item">
+        <div>Напрямок:</div>
+        <div id="direction" class="stat-value">СТОП</div>
+    </div>
+    <div class="stat-item">
+        <div>Наступний поверх:</div>
+        <div id="nextFloor" class="stat-value">-</div>
+    </div>
+    <div class="stat-item">
+        <div>Пасажири в ліфті:</div>
+        <div id="elevatorPassengers" class="stat-value">-</div>
+    </div>
 </div>
 
-<div class="container"><div id="gameCanvas"></div></div>
+<div class="container">
+    <div id="gameCanvas"></div>
+</div>
 
 <div class="legend">
-    <div class="legend-item"><div class="color-box blue"></div><span>Угору</span></div>
-    <div class="legend-item"><div class="color-box green"></div><span>Вниз</span></div>
-    <div class="legend-item"><div class="color-box red"></div><span>Ліфт</span></div>
+    <div class="legend-item">
+        <div class="color-box blue"></div>
+        <span>Угору</span></div>
+    <div class="legend-item">
+        <div class="color-box green"></div>
+        <span>Вниз</span></div>
+    <div class="legend-item">
+        <div class="color-box red"></div>
+        <span>Ліфт</span></div>
 </div>
 
 <footer><p>PIXI.js + Tween.js | ліфт-сим</p></footer>
