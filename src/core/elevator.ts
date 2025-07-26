@@ -1,20 +1,19 @@
 import * as PIXI from 'pixi.js';
-import { CONFIG } from './config';
-import { createTween } from './animation';
-import type { Direction } from './types';
-import type { Person } from './person';
-import type { Building } from './building';
+import {CONFIG} from './config';
+import {createTween} from './animation';
+import type {Direction} from './types';
+import type {Person} from './person';
+import type {Building} from './building';
 
 export class Elevator {
     currentFloor = 0;
     direction: Direction = 'stop';
     nextFloor: number | null = null;
+    view: PIXI.Container<any>;
 
     private readonly passengers: Person[] = [];
     private boardingQueue: Person[] = [];
     private isMoving = false;
-
-    private readonly view: PIXI.Container<any>;
     private readonly doorLeft: PIXI.Graphics;
     private readonly doorRight: PIXI.Graphics;
     private readonly indicator: PIXI.Text;
@@ -23,17 +22,17 @@ export class Elevator {
         this.view = new PIXI.Container();
 
         const cab = new PIXI.Graphics()
-            .fill({ color: 0xff6b6b })
+            .fill({color: 0xff6b6b})
             .roundRect(0, 0, CONFIG.elevatorWidth, CONFIG.floorHeight - 2, 5)
             .fill();
         this.view.addChild(cab);
 
         this.doorLeft = new PIXI.Graphics()
-            .fill({ color: 0xe74c3c })
+            .fill({color: 0xe74c3c})
             .rect(0, 0, CONFIG.elevatorWidth / 2, CONFIG.floorHeight - 2)
             .fill();
         this.doorRight = new PIXI.Graphics()
-            .fill({ color: 0xe74c3c })
+            .fill({color: 0xe74c3c})
             .rect(CONFIG.elevatorWidth / 2, 0, CONFIG.elevatorWidth / 2, CONFIG.floorHeight - 2)
             .fill();
         this.view.addChild(this.doorLeft, this.doorRight);
@@ -67,16 +66,18 @@ export class Elevator {
     }
 
     private hasActionOnFloor(floor: number): boolean {
-        const somebodyExits = this.passengers.some((p) => p.targetFloor === floor);
+        const somebodyExits = this.passengers.some(p => p.targetFloor === floor);
+
         const somebodyWaits = this.building
             .getPersonsAtFloor(floor)
-            .some(
-                (p) =>
-                    p.state === 'waiting' &&
-                    (this.passengers.length ? p.direction === this.direction : true)
+            .some(p =>
+                p.state === 'waiting' &&
+                (this.passengers.length ? p.direction === this.direction : true)
             );
+
         return somebodyExits || somebodyWaits;
     }
+
 
     private chooseNextFloor(): number | null {
         if (this.hasActionOnFloor(this.currentFloor)) return this.currentFloor;
@@ -140,7 +141,7 @@ export class Elevator {
             1_000;
 
         createTween(this.view.position)
-            .to({ y: this.building.getFloorY(this.nextFloor) }, durationMs)
+            .to({y: this.building.getFloorY(this.nextFloor)}, durationMs)
             .onComplete(() => {
                 this.currentFloor = this.nextFloor!;
                 this.isMoving = false;
@@ -157,45 +158,65 @@ export class Elevator {
     }
 
     private stopAtFloor() {
+        this.building.spawnLockFloor = this.currentFloor;
+
         this.passengers
-            .filter((p) => p.targetFloor === this.currentFloor)
-            .forEach((p) => this.exitPassenger(p));
+            .filter(p => p.targetFloor === this.currentFloor)
+            .forEach(p => this.exitPassenger(p));
 
-        const waiting = this.building
+        const boarding = this.building
             .getPersonsAtFloor(this.currentFloor)
-            .filter(
-                (p) =>
-                    p.state === 'waiting' &&
-                    (this.passengers.length ? p.direction === this.direction : true)
+            .filter(p =>
+                (p.state === 'waiting' || p.state === 'walking') &&
+                (this.passengers.length ? p.direction === this.direction : true)
             );
-
-        waiting
+        boarding
             .slice(0, this.capacity - this.passengers.length)
-            .forEach((p) => this.enterPassenger(p));
+            .forEach(p => this.enterPassenger(p));
 
         if (!this.hasActionOnFloor(this.currentFloor)) {
             this.nextFloor = this.chooseNextFloor();
             this.updateUI();
+            this.building.spawnLockFloor = null;
             this.travel();
             return;
         }
 
         this.openDoors();
         this.updateUI();
-        setTimeout(() => {
-            this.closeDoors();
-            setTimeout(() => {
-                this.nextFloor = this.chooseNextFloor();
-                this.updateUI();
-                this.travel();
-            }, 300);
-        }, CONFIG.doorStopMs);
+
+        const tryClose = () => {
+            const walkers = this.building
+                .getPersonsAtFloor(this.currentFloor)
+                .filter(p => p.state === 'walking' &&
+                    (this.passengers.length ? p.direction === this.direction : true)
+                );
+            const freeSpots = this.capacity - this.passengers.length;
+
+            if (walkers.length > 0 && freeSpots > 0) {
+                setTimeout(tryClose, 200);
+            } else {
+                this.closeDoors();
+                setTimeout(() => {
+                    this.building.spawnLockFloor = null;
+                    this.nextFloor = this.chooseNextFloor();
+                    this.updateUI();
+                    this.travel();
+                }, 300);
+            }
+        };
+
+        setTimeout(tryClose, CONFIG.doorStopMs);
     }
+
 
     private enterPassenger(person: Person) {
         this.passengers.push(person);
-        this.boardingQueue = this.boardingQueue.filter((p) => p.id !== person.id);
+        this.boardingQueue = this.boardingQueue.filter(p => p.id !== person.id);
         this.building.removePersonFromFloor(person);
+
+        this.building.shiftQueue(this.currentFloor);
+
         person.enterElevator();
     }
 
@@ -203,24 +224,24 @@ export class Elevator {
         this.passengers.splice(this.passengers.indexOf(person), 1);
         person.currentFloor = this.currentFloor;
         person.leaveElevator();
-        this.building.ui.transportedCount.textContent = String(
-            +this.building.ui.transportedCount.textContent + 1
-        );
+
+        const prevCount = parseInt(this.building.ui.transportedCount.textContent, 10) || 0;
+        this.building.ui.transportedCount.textContent = String(prevCount + 1);
     }
 
     private openDoors() {
         createTween(this.doorLeft.position)
-            .to({ x: -CONFIG.elevatorWidth / 2 }, 300)
+            .to({x: -CONFIG.elevatorWidth / 2}, 300)
             .start();
         createTween(this.doorRight.position)
-            .to({ x: CONFIG.elevatorWidth / 2 }, 300)
+            .to({x: CONFIG.elevatorWidth / 2}, 300)
             .start();
     }
 
     private closeDoors() {
-        createTween(this.doorLeft.position).to({ x: 0 }, 300).start();
+        createTween(this.doorLeft.position).to({x: 0}, 300).start();
         createTween(this.doorRight.position)
-            .to({ x: CONFIG.elevatorWidth / 2 }, 300)
+            .to({x: CONFIG.elevatorWidth / 2}, 300)
             .start();
     }
 }

@@ -45,11 +45,17 @@ export class Person {
         if (this.state !== 'waiting') return;
         this.state = 'walking';
 
+        this.building.elevator.enqueuePassenger(this);
+
+
+        const idx = this.building.getQueueIndex(this.currentFloor);
+        const targetX = this.building.queueX(idx);
+
         createTween(this.view.position)
-            .to({ x: CONFIG.elevatorWidth / 2 - CONFIG.personWidth / 2 + 20 }, 1_200)
+            .to({ x: targetX }, 1_200)
             .onComplete(() => {
                 this.state = 'waiting';
-                this.building.elevator.enqueuePassenger(this);
+                this.building.shiftQueue(this.currentFloor);
             })
             .start();
     }

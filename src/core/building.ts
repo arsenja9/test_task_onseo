@@ -3,12 +3,14 @@ import {CONFIG} from './config';
 import {tweenGroup, createTween} from './animation';
 import {Person} from './person';
 import {Elevator} from './elevator';
-import type {UIElements} from './types';
+import type { UIElements} from './types';
 
 export class Building {
     readonly app: PIXI.Application;
     elevator: Elevator;
     readonly floors: number;
+    private exitQueues: Person[][];
+    public spawnLockFloor: number | null = null;
 
     private floorStorage: { persons: Person[] }[] = [];
     private nextPersonId = 1;
@@ -34,6 +36,8 @@ export class Building {
 
                 this.app.ticker.add(() => tweenGroup.update());
             });
+
+        this.exitQueues = Array.from({ length: floors }, () => []);
     }
 
     startSpawning() {
@@ -67,9 +71,10 @@ export class Building {
     }
 
     removePersonFromFloor(person: Person) {
-        const arr = this.floorStorage[this.elevator.currentFloor].persons;
+        const floor = this.elevator.currentFloor;
+        const arr = this.floorStorage[floor].persons;
         arr.splice(arr.indexOf(person), 1);
-        this.updateFloorLayout(this.elevator.currentFloor);
+        this.shiftQueue(floor);
     }
 
     getPersonsAtFloor(floor: number) {
@@ -92,7 +97,13 @@ export class Building {
 
     private spawnPerson() {
         const startFloor = Math.floor(Math.random() * this.floors);
-        if (this.floorStorage[startFloor].persons.length) return;
+
+        if (this.spawnLockFloor === startFloor) return;
+
+        const waitingHere = this.floorStorage[startFloor].persons
+            .filter(p => p.state === 'waiting').length;
+        if (waitingHere >= CONFIG.maxQueuePerFloor) return;
+
 
         let targetFloor: number;
         do {
@@ -143,5 +154,36 @@ export class Building {
                 .moveTo(CONFIG.elevatorWidth + 40, 0)
                 .lineTo(CONFIG.elevatorWidth + 40, this.floors * CONFIG.floorHeight)
         );
+    }
+
+    getQueueIndex(floor: number): number {
+        return this.getPersonsAtFloor(floor)
+            .filter(p => p.state === 'waiting' || p.state === 'walking')
+            .length;
+    }
+
+    shiftQueue(floor: number) {
+        const waiting = this.getPersonsAtFloor(floor)
+            .filter(p => p.state === 'waiting' || p.state === 'walking')
+            .sort((a, b) => a.id - b.id);
+
+        const cabinX = this.elevator.view.x;
+        const step = CONFIG.personWidth + CONFIG.queueGap;
+        const baseX = cabinX + CONFIG.elevatorWidth + CONFIG.queueMargin;
+        const maxX = CONFIG.buildingWidth - CONFIG.personWidth - CONFIG.queueMargin;
+
+        waiting.forEach((p, idx) => {
+            const x = Math.min(baseX + idx * step, maxX);
+            createTween(p.pixi.position).to({ x }, 400).start();
+        });
+    }
+
+
+    queueX(idx: number): number {
+        const cabinX = this.elevator.view.x;
+        const step = CONFIG.personWidth + CONFIG.queueGap;
+        const base = cabinX + CONFIG.elevatorWidth + CONFIG.queueMargin;
+        const maxX = CONFIG.buildingWidth - CONFIG.personWidth - CONFIG.queueMargin;
+        return Math.min(base + idx * step, maxX);
     }
 }
